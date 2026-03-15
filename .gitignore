@@ -14,5 +14,8 @@ statements/
 # Environment
 .env
 
+# Local MCP config (user-specific)
+.mcp.json
+
 # OS
 .DS_Store
