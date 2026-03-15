@@ -1,0 +1,42 @@
+# Card Rewards Configuration
+# Copy this file to your data directory's config/ folder and customize.
+# Rates are percentages (e.g., 6.0 = 6% cash back)
+# Categories should match the unified taxonomy.
+
+cards:
+  - institution: amex
+    card_name: Blue Cash Preferred
+    reward_type: cashback
+    annual_fee: 95
+    rates:
+      Food & Dining|Groceries: 6.0
+      Entertainment|Streaming: 6.0
+      Transportation|Gas: 3.0
+      Transportation|Public Transit: 3.0
+      all: 1.0
+
+  - institution: wells_fargo
+    card_name: Active Cash
+    reward_type: cashback
+    annual_fee: 0
+    rates:
+      all: 2.0
+
+  - institution: chase
+    card_name: Freedom Unlimited
+    reward_type: cashback
+    annual_fee: 0
+    rates:
+      Food & Dining: 3.0
+      Health|Pharmacy: 3.0
+      Travel: 5.0
+      all: 1.5
+
+  - institution: discover
+    card_name: it Cash Back
+    reward_type: cashback
+    annual_fee: 0
+    rates:
+      all: 1.0
+      # Discover has rotating 5% categories each quarter
+      # Update these quarterly as they change

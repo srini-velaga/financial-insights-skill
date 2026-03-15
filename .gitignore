@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+
+# User data (never commit financial data)
+*.duckdb
+*.duckdb.wal
+statements/
+
+# Environment
+.env
+
+# OS
+.DS_Store

@@ -1,0 +1,41 @@
+{
+  "institution": "chase",
+  "display_name": "Chase",
+  "account_type": "credit_card",
+  "file_type": "csv",
+  "delimiter": ",",
+  "has_header": true,
+  "skip_rows": 0,
+  "encoding": "utf-8",
+  "header_fingerprint": ["Transaction Date", "Post Date", "Description", "Category", "Type", "Amount", "Memo"],
+  "columns": {
+    "transaction_date": { "name": "Transaction Date", "format": "%m/%d/%Y" },
+    "post_date": { "name": "Post Date", "format": "%m/%d/%Y" },
+    "description": { "name": "Description" },
+    "amount": { "name": "Amount" },
+    "category": { "name": "Category" },
+    "transaction_type": { "name": "Type" }
+  },
+  "amount_handling": {
+    "style": "single",
+    "sign_convention": "negative_is_charge",
+    "strip_chars": "$,"
+  },
+  "category_mappings": {
+    "Food & Drink": ["Food & Dining", "General"],
+    "Shopping": ["Shopping", "General"],
+    "Travel": ["Travel", "General"],
+    "Bills & Utilities": ["Bills & Utilities", "General"],
+    "Gifts & Donations": ["Gifts & Donations", "General"],
+    "Fees & Adjustments": ["Fees & Adjustments", "General"],
+    "Entertainment": ["Entertainment", "General"],
+    "Health & Wellness": ["Health", "General"],
+    "Home": ["Home", "General"],
+    "Personal": ["Shopping", "Personal"],
+    "Professional Services": ["Business Services", "General"],
+    "Automotive": ["Transportation", "General"],
+    "Gas": ["Transportation", "Gas"],
+    "Education": ["Bills & Utilities", "Education"]
+  },
+  "notes": "Export from chase.com > Activity > Download account activity. Select CSV and desired date range."
+}

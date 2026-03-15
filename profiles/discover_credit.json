@@ -1,0 +1,37 @@
+{
+  "institution": "discover",
+  "display_name": "Discover",
+  "account_type": "credit_card",
+  "file_type": "csv",
+  "delimiter": ",",
+  "has_header": true,
+  "skip_rows": 0,
+  "encoding": "utf-8",
+  "header_fingerprint": ["Trans. Date", "Post Date", "Description", "Amount", "Category"],
+  "columns": {
+    "transaction_date": { "name": "Trans. Date", "format": "%m/%d/%Y" },
+    "post_date": { "name": "Post Date", "format": "%m/%d/%Y" },
+    "description": { "name": "Description" },
+    "amount": { "name": "Amount" },
+    "category": { "name": "Category" }
+  },
+  "amount_handling": {
+    "style": "single",
+    "sign_convention": "positive_is_charge",
+    "strip_chars": "$,"
+  },
+  "category_mappings": {
+    "Restaurants": ["Food & Dining", "Restaurants"],
+    "Supermarkets": ["Food & Dining", "Groceries"],
+    "Merchandise": ["Shopping", "General"],
+    "Gasoline": ["Transportation", "Gas"],
+    "Travel/ Entertainment": ["Travel", "General"],
+    "Services": ["Business Services", "General"],
+    "Medical Services": ["Health", "Medical"],
+    "Education": ["Bills & Utilities", "Education"],
+    "Payments and Credits": ["Payments & Credits", "General"],
+    "Fees": ["Fees & Adjustments", "General"],
+    "Awards and Rebate Credits": ["Payments & Credits", "Rewards"]
+  },
+  "notes": "Export from discover.com > Statements > Download activity. Select CSV and desired period."
+}

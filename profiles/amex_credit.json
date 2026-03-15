@@ -1,0 +1,43 @@
+{
+  "institution": "amex",
+  "display_name": "American Express",
+  "account_type": "credit_card",
+  "file_type": "csv",
+  "delimiter": ",",
+  "has_header": true,
+  "skip_rows": 0,
+  "encoding": "utf-8",
+  "header_fingerprint": ["Date", "Description", "Amount", "Extended Details", "Category"],
+  "columns": {
+    "transaction_date": { "name": "Date", "format": "%m/%d/%Y" },
+    "description": { "name": "Description" },
+    "amount": { "name": "Amount" },
+    "category": { "name": "Category" },
+    "location": { "name": "City/State" }
+  },
+  "amount_handling": {
+    "style": "single",
+    "sign_convention": "positive_is_charge",
+    "strip_chars": "$,"
+  },
+  "category_mappings": {
+    "Restaurant-Restaurant": ["Food & Dining", "Restaurants"],
+    "Merchandise & Supplies-Groceries": ["Food & Dining", "Groceries"],
+    "Transportation-Fuel": ["Transportation", "Gas"],
+    "Transportation-Other": ["Transportation", "General"],
+    "Travel-Airline": ["Travel", "Airfare"],
+    "Travel-Hotel": ["Travel", "Hotels"],
+    "Travel-Other": ["Travel", "General"],
+    "Business Services-Other Services": ["Business Services", "General"],
+    "Business Services-Advertising": ["Business Services", "Advertising"],
+    "Merchandise & Supplies-Other": ["Shopping", "General"],
+    "Merchandise & Supplies-Sporting Goods": ["Shopping", "Sporting Goods"],
+    "Merchandise & Supplies-Electronics": ["Shopping", "Electronics"],
+    "Merchandise & Supplies-Clothing/Shoes": ["Shopping", "Clothing"],
+    "Entertainment-Other": ["Entertainment", "General"],
+    "Fees & Adjustments-Fees & Adjustments": ["Fees & Adjustments", "General"],
+    "Communications-Cable/Satellite Svcs": ["Bills & Utilities", "Cable"],
+    "Communications-Online Services": ["Bills & Utilities", "Internet"]
+  },
+  "notes": "Export from amex.com > Statements & Activity > Download. Select CSV format and desired date range."
+}

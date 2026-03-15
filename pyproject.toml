@@ -1,0 +1,25 @@
+[project]
+name = "financial-insights-skill"
+version = "0.1.0"
+description = "AI-powered personal financial statement analyzer with adaptive parser profiles"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "duckdb>=1.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+pdf = ["pdfplumber>=0.10"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+fin-insights = "fin_insights.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["fin_insights"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

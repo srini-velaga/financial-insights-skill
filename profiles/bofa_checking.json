@@ -1,0 +1,9 @@
+{
+  "institution": "bofa",
+  "display_name": "Bank of America",
+  "account_type": "checking",
+  "file_type": "pdf",
+  "notes": "PDF-only for checking. Download monthly statements from bankofamerica.com > Statements & Documents. CSV export is preferred if available.",
+  "prefer_csv_over_pdf": false,
+  "category_mappings": {}
+}
