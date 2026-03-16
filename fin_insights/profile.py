@@ -2,6 +2,7 @@
 
 import csv
 import json
+import logging
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 from fin_insights.categories import map_category
 from fin_insights.config import get_builtin_profiles_dir, get_user_profiles_dir
 from fin_insights.models import Transaction
+
+logger = logging.getLogger(__name__)
 
 
 def load_all_profiles(data_dir: Path) -> list[dict]:
@@ -45,7 +48,8 @@ def match_profile(file_path: Path, profiles: list[dict]) -> dict | None:
 
     try:
         header_line = _read_header(file_path)
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to read header from %s: %s", file_path, e)
         return None
 
     if not header_line:
@@ -124,8 +128,8 @@ def parse_csv_with_profile(
                 )
                 if txn:
                     transactions.append(txn)
-            except Exception:
-                # Skip unparseable rows
+            except Exception as e:
+                logger.debug("Skipping unparseable row in %s: %s", file_path, e)
                 continue
 
     return transactions

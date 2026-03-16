@@ -1,5 +1,6 @@
 """Ingestion pipeline — scan, parse, deduplicate, store."""
 
+import logging
 from hashlib import sha256
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from fin_insights import db
 from fin_insights.categories import load_category_mappings
 from fin_insights.config import get_statements_dir
 from fin_insights.profile import load_all_profiles, match_profile, parse_csv_with_profile
+
+logger = logging.getLogger(__name__)
 
 # Supported file extensions
 CSV_EXTENSIONS = {".csv"}
@@ -116,6 +119,7 @@ def _process_csv(
     try:
         transactions = parse_csv_with_profile(file_path, profile, category_mappings)
     except Exception as e:
+        logger.warning("Failed to parse CSV %s: %s", rel_path, e)
         return {"file": rel_path, "status": "failed", "reason": str(e)}
 
     return _store_transactions(
@@ -160,6 +164,7 @@ def _process_pdf(
                 account_type=profile.get("account_type", "credit_card"),
             )
         except Exception as e:
+            logger.warning("Failed to parse PDF %s: %s", rel_path, e)
             return {"file": rel_path, "status": "failed", "reason": str(e)}
     else:
         return {"file": rel_path, "status": "failed", "reason": f"PDF parsing not implemented for {institution}"}

@@ -17,10 +17,18 @@ def to_json(data: dict | list) -> str:
     return json.dumps(data, indent=2, cls=DecimalEncoder, default=str)
 
 
+_ALLOWED_DATE_COLS = {"transaction_date", "post_date", "ingested_at"}
+
+
 def _interval_filter(months: int | None, col: str = "transaction_date") -> str:
-    """Build an interval WHERE clause. months is always int, safe to interpolate."""
+    """Build an interval WHERE clause.
+
+    Safety: col is validated against a whitelist; months is coerced to int.
+    """
     if months is None:
         return ""
+    if col not in _ALLOWED_DATE_COLS:
+        raise ValueError(f"Invalid date column: {col}")
     return f"AND {col} >= CURRENT_DATE - INTERVAL '{int(months)}' MONTH"
 
 
@@ -84,7 +92,7 @@ def get_top_merchants(conn: duckdb.DuckDBPyConnection, limit: int = 10, months: 
             WHERE amount > 0 {interval}
             GROUP BY 1
             ORDER BY 3 DESC
-            LIMIT {int(limit)}""",
+            LIMIT {int(limit)}""",  # int() coercion prevents injection
     ).fetchall()
 
     return [{"merchant": r[0], "transactions": r[1], "total": r[2]} for r in rows]
@@ -118,13 +126,13 @@ def get_category_breakdown(
                 GROUP BY 1, 2
             ),
             grand_total AS (
-                SELECT ROUND(SUM(amount), 2) AS gt FROM transactions WHERE {where}
+                SELECT ROUND(SUM(total), 2) AS gt FROM cats
             )
             SELECT c.unified_category, c.unified_subcategory, c.total, c.txn_count,
                    ROUND(c.total / NULLIF(g.gt, 0) * 100, 1) AS pct
             FROM cats c, grand_total g
             ORDER BY c.total DESC""",
-        params + params,
+        params,
     ).fetchall()
 
     return [

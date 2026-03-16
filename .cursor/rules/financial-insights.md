@@ -1,33 +1,68 @@
 ---
-description: "Financial insights CLI tool for analyzing credit card and bank statements, spending trends, cash flow, and card reward optimization"
+description: "Financial insights Python API for analyzing credit card and bank statements, spending trends, cash flow, and card reward optimization"
 alwaysApply: false
 globs: ["**/fin_insights/**", "**/profiles/**", "**/statements/**"]
 ---
 
 # Financial Insights Tool
 
-You have access to the `fin-insights` CLI tool for personal financial analysis.
+You have access to the `fin_insights` Python package for personal financial analysis. Use it by importing and calling functions directly — do NOT run CLI commands.
 
-## Commands
+## Setup
 
-- `fin-insights init` — Set up data directory at ~/financial-data/
-- `fin-insights ingest` — Parse new/modified statement files into DuckDB
-- `fin-insights status` — Show processed files and transaction summary
-- `fin-insights insights [--months N]` — Spending trends and top merchants
-- `fin-insights categories [--month YYYY-MM]` — Category breakdown
-- `fin-insights cashflow [--months N]` — Income vs spending, savings rate
-- `fin-insights recommend load` — Load card rewards from YAML config
-- `fin-insights recommend category "X"` — Best card for a category
-- `fin-insights recommend optimize --months N` — Missed reward opportunities
+```python
+import sys
+sys.path.insert(0, "<path-to-financial-insights-skill-repo>")
 
-Add `--format json` to any analytics command for machine-readable output.
+from fin_insights.config import get_data_dir, get_db_path
+from fin_insights.db import get_connection
 
-## Workflow
+data_dir = get_data_dir()  # uses FIN_INSIGHTS_DATA env var, or ~/financial-data/
+conn = get_connection(get_db_path(data_dir))
+```
 
-1. Always run `ingest` first if the user has added new statements
-2. Use `status` to confirm data is current
-3. Run analytics commands based on the user's question
-4. Interpret the output and provide conversational insights
+## Ingesting Statements
+
+```python
+from fin_insights.ingest import ingest
+result = ingest(data_dir, conn)
+# result keys: files_scanned, files_processed, transactions_inserted, etc.
+```
+
+## Analytics Functions
+
+Import from `fin_insights.analytics`:
+
+| Function | Parameters | Returns |
+|----------|-----------|---------|
+| `get_category_breakdown(conn, month=None, year=None)` | `month`: "YYYY-MM", `year`: "YYYY" | `[{category, subcategory, total, transactions, percentage}]` |
+| `get_cashflow(conn, months=None)` | `months`: last N months | `[{month, income, spending, net_cashflow, savings_rate}]` |
+| `get_monthly_spending_by_category(conn, months=None)` | `months`: int | `[{category, month, total}]` |
+| `get_month_over_month(conn, months=None)` | `months`: int | `[{category, month, total, change, pct_change}]` |
+| `get_top_merchants(conn, limit=10, months=None)` | `limit`: int, `months`: int | `[{merchant, transactions, total}]` |
+| `get_spending_by_card(conn, months=None)` | `months`: int | `[{institution, category, total, transactions}]` |
+
+## Ad-hoc DuckDB Queries
+
+For questions that don't map to a canned function, query the database directly:
+
+```python
+conn.execute("SELECT ... FROM transactions WHERE ...").fetchall()
+```
+
+**transactions** table: `transaction_date` DATE, `description` VARCHAR, `description_clean` VARCHAR, `amount` DECIMAL(10,2) (positive=expense, negative=income), `institution` VARCHAR, `account_type` VARCHAR, `unified_category` VARCHAR, `unified_subcategory` VARCHAR
+
+**Unified Categories (16):** Food & Dining, Transportation, Travel, Shopping, Bills & Utilities, Entertainment, Health, Home, Insurance & Financial, Business Services, Gifts & Donations, Fees & Adjustments, Payments & Credits, Income, Transfers, ATM & Cash
+
+## Card Rewards
+
+```python
+from fin_insights.rewards import load_rewards_to_db, recommend_for_category, optimize_past_spending
+config_path = data_dir / "config" / "card_rewards.yaml"
+load_rewards_to_db(conn, config_path)
+results = recommend_for_category(conn, "Food & Dining")
+missed = optimize_past_spending(conn, months=3)
+```
 
 ## New Bank Support
 
@@ -35,9 +70,8 @@ When encountering statements from an unsupported bank:
 1. Read the CSV headers and sample rows
 2. Identify date, description, amount, and category columns
 3. Generate a parser profile JSON and save to ~/financial-data/profiles/
-4. If PDF-only, suggest CSV export from the bank's website
-5. Confirm the profile with the user before saving
+4. Confirm the profile with the user before saving
 
 ## Data Location
 
-User data is at `$FIN_INSIGHTS_DATA` (default: `~/financial-data/`). This data should never be committed to any repository.
+User data is at `$FIN_INSIGHTS_DATA` (default: `~/financial-data/`). This data should never be committed to any repository. Always close the DuckDB connection when done.
