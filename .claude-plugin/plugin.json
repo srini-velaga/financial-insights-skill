@@ -1,0 +1,9 @@
+{
+  "name": "financial-insights",
+  "description": "Analyze credit card and bank statements for spending insights, category trends, cash flow analysis, and card reward optimization.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Srini Velaga"
+  },
+  "repository": "https://github.com/srini-velaga/financial-insights-skill"
+}

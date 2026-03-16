@@ -11,27 +11,43 @@ You have access to the `fin_insights` Python package for personal financial anal
 
 ### 1. Add the package to your Python path
 
+The `fin_insights` package is bundled with this plugin. Find the plugin's install directory (the directory containing this skill file's parent `skills/` folder) and add it to `sys.path`:
+
 ```python
 import sys
-import subprocess
+from pathlib import Path
 
-# Find the repo root (contains fin_insights/ package)
-repo_root = subprocess.run(
-    ["git", "rev-parse", "--show-toplevel"],
-    capture_output=True, text=True
-).stdout.strip()
+# Find the plugin root (contains fin_insights/ package)
+# Look for fin_insights package in common plugin locations
+plugin_candidates = [
+    p for p in [
+        Path.home() / ".claude" / "plugins" / "financial-insights",
+        *Path.home().glob(".claude/plugins/*/financial-insights"),
+    ]
+    if (p / "fin_insights").is_dir()
+]
 
-if repo_root:
-    sys.path.insert(0, repo_root)
+if plugin_candidates:
+    sys.path.insert(0, str(plugin_candidates[0]))
+else:
+    # Fallback: search for the repo by checking known paths or ask the user
+    # You can also check if fin_insights is already importable
+    pass
+
+# Ensure duckdb is available
+try:
+    import duckdb
+except ImportError:
+    # Install duckdb if needed: pip install duckdb
+    pass
 ```
 
-If git is not available, use the project's working directory or ask the user for the repo path.
+If the plugin path cannot be auto-detected, ask the user where they cloned the `financial-insights-skill` repo and use that path.
 
 ### 2. Initialize data directory (first time only)
 
 ```python
 from pathlib import Path
-import shutil
 from fin_insights.config import get_data_dir, get_statements_dir, get_user_profiles_dir, get_user_config_dir
 
 data_dir = get_data_dir()  # uses FIN_INSIGHTS_DATA env var, or ~/financial-data/
