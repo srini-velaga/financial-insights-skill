@@ -73,4 +73,4 @@ For PDFs: extract text with `pdfplumber`, identify patterns, parse transactions 
 
 ## Data Location
 
-State lives in `{data_dir}/.fin-insights/`. User provides their statement folder path. Never commit financial data to any repository. Always close the DuckDB connection when done. 
+State lives in `{data_dir}/.fin-insights/`. User provides their statement folder path. Never commit financial data to any repository. Always close the DuckDB connection when done.
