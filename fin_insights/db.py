@@ -45,11 +45,32 @@ CREATE TABLE IF NOT EXISTS card_rewards (
     annual_fee   DECIMAL(8,2) DEFAULT 0,
     PRIMARY KEY (institution, card_name, category)
 );
+
+CREATE TABLE IF NOT EXISTS analysis_cache (
+    cache_key    VARCHAR PRIMARY KEY,
+    query_type   VARCHAR NOT NULL,
+    parameters   VARCHAR,
+    result_json  VARCHAR NOT NULL,
+    data_hash    VARCHAR NOT NULL,
+    computed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS session_log (
+    id             VARCHAR PRIMARY KEY,
+    query_text     VARCHAR NOT NULL,
+    query_type     VARCHAR,
+    result_summary VARCHAR,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
 def get_connection(db_path: Path) -> duckdb.DuckDBPyConnection:
-    """Open a DuckDB connection and ensure schema exists."""
+    """Open a DuckDB connection and ensure schema exists.
+
+    Auto-creates parent directories (.fin-insights/) if needed.
+    """
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(db_path))
     conn.execute(SCHEMA_SQL)
     return conn

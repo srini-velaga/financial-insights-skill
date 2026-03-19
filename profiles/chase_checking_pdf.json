@@ -1,0 +1,7 @@
+{
+  "institution": "chase",
+  "display_name": "Chase College Checking",
+  "account_type": "checking",
+  "file_type": "pdf",
+  "notes": "Chase checking account monthly statement PDF. Transactions in *start*transaction detail block."
+}

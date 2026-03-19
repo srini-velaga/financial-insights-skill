@@ -1,0 +1,7 @@
+{
+  "institution": "discover",
+  "display_name": "Discover It Card",
+  "account_type": "credit_card",
+  "file_type": "pdf",
+  "notes": "Discover credit card monthly statement PDF. Payments section has -$AMOUNT, Purchases section has $AMOUNT."
+}

@@ -1,0 +1,7 @@
+{
+  "institution": "bofa",
+  "display_name": "Bank of America Year-End Summary",
+  "account_type": "yearend",
+  "file_type": "pdf",
+  "notes": "BofA credit card year-end summary PDF. Date format MM/DD/YY."
+}

@@ -9,66 +9,29 @@ You have access to the `fin_insights` Python package for personal financial anal
 
 ## Setup
 
-### 1. Add the package to your Python path
-
-The `fin_insights` package is bundled with this plugin. Find the plugin's install directory (the directory containing this skill file's parent `skills/` folder) and add it to `sys.path`:
-
-```python
-import sys
-from pathlib import Path
-
-# Find the plugin root (contains fin_insights/ package)
-# Look for fin_insights package in common plugin locations
-plugin_candidates = [
-    p for p in [
-        Path.home() / ".claude" / "plugins" / "financial-insights",
-        *Path.home().glob(".claude/plugins/*/financial-insights"),
-    ]
-    if (p / "fin_insights").is_dir()
-]
-
-if plugin_candidates:
-    sys.path.insert(0, str(plugin_candidates[0]))
-else:
-    # Fallback: search for the repo by checking known paths or ask the user
-    # You can also check if fin_insights is already importable
-    pass
-
-# Ensure duckdb is available
-try:
-    import duckdb
-except ImportError:
-    # Install duckdb if needed: pip install duckdb
-    pass
-```
-
-If the plugin path cannot be auto-detected, ask the user where they cloned the `financial-insights-skill` repo and use that path.
-
-### 2. Initialize data directory (first time only)
-
 ```python
 from pathlib import Path
-from fin_insights.config import get_data_dir, get_statements_dir, get_user_profiles_dir, get_user_config_dir
-
-data_dir = get_data_dir()  # uses FIN_INSIGHTS_DATA env var, or ~/financial-data/
-for sub_dir in [get_statements_dir(data_dir), get_user_profiles_dir(data_dir), get_user_config_dir(data_dir)]:
-    sub_dir.mkdir(parents=True, exist_ok=True)
-```
-
-### 3. Connect to the database
-
-```python
-from fin_insights.config import get_data_dir, get_db_path
+from fin_insights.config import get_data_dir, get_db_path, ensure_state_dir
 from fin_insights.db import get_connection
 
-data_dir = get_data_dir()
+# Ask user for their statement folder, or use current directory
+# Example: data_dir = get_data_dir("/Users/me/bank-statements")
+data_dir = get_data_dir()  # defaults to cwd; pass a path to override
+ensure_state_dir(data_dir)
 conn = get_connection(get_db_path(data_dir))
 # Always close when done: conn.close()
 ```
 
+If `fin_insights` is not importable, the user needs to install:
+```
+pip install git+https://github.com/srini-velaga/financial-insights-skill.git
+```
+
+**First-time setup:** Ask the user where their bank statements are. They can provide any local folder path. The database and state are stored in `.fin-insights/` inside that folder.
+
 ## Ingesting Statements
 
-When the user adds new statement files to `statements/{bank}/`:
+Scans the data directory recursively for CSV/PDF files (skips `.fin-insights/`):
 
 ```python
 from fin_insights.ingest import ingest
@@ -102,11 +65,20 @@ from fin_insights.analytics import (
 | `get_top_merchants(conn, limit=10, months=None)` | `limit`: int, `months`: int | `[{merchant, transactions, total}]` |
 | `get_spending_by_card(conn, months=None)` | `months`: int | `[{institution, category, total, transactions}]` |
 
-Example:
+All analytics functions are automatically cached. Results are invalidated when new data is ingested.
+
+## Session History
+
+Before running a query, check if it was already answered:
+
 ```python
-data = get_category_breakdown(conn, month="2025-01")
-for row in data:
-    print(f"{row['category']}: ${row['total']}")
+from fin_insights.session import get_recent_queries, log_query
+
+# Check what was already analyzed
+recent = get_recent_queries(conn, limit=10)
+
+# After answering a question, log it
+log_query(conn, "What did I spend on food in January?", "category_breakdown", "Food & Dining: $342.50")
 ```
 
 ## Ad-hoc DuckDB Queries
@@ -127,59 +99,22 @@ conn.execute("SELECT ... FROM transactions WHERE ...").fetchall()
 - `unified_category` VARCHAR, `unified_subcategory` VARCHAR
 - `original_category` VARCHAR, `source_file` VARCHAR, `location` VARCHAR
 
-**processing_log** table:
-- `file_path` VARCHAR, `file_hash` VARCHAR, `institution` VARCHAR
-- `file_type` VARCHAR, `record_count` INTEGER, `processed_at` TIMESTAMP
-
-**card_rewards** table:
-- `institution` VARCHAR, `card_name` VARCHAR, `reward_type` VARCHAR
-- `category` VARCHAR, `reward_rate` DECIMAL(5,2), `annual_fee` DECIMAL(8,2)
-
-### Unified Categories (16)
-
-Food & Dining, Transportation, Travel, Shopping, Bills & Utilities, Entertainment, Health, Home, Insurance & Financial, Business Services, Gifts & Donations, Fees & Adjustments, Payments & Credits, Income, Transfers, ATM & Cash
-
-### Example Queries
-
-```sql
--- Total food spending last month
-SELECT ROUND(SUM(amount), 2) FROM transactions
-WHERE unified_category = 'Food & Dining' AND amount > 0
-  AND transaction_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1' MONTH)
-  AND transaction_date < DATE_TRUNC('month', CURRENT_DATE);
-
--- Top 5 merchants this year
-SELECT description_clean, COUNT(*) AS txns, ROUND(SUM(amount), 2) AS total
-FROM transactions WHERE amount > 0 AND EXTRACT(YEAR FROM transaction_date) = 2025
-GROUP BY 1 ORDER BY 3 DESC LIMIT 5;
-
--- Monthly spending trend
-SELECT DATE_TRUNC('month', transaction_date)::DATE AS month, ROUND(SUM(amount), 2) AS total
-FROM transactions WHERE amount > 0
-GROUP BY 1 ORDER BY 1 DESC;
-```
+**Unified Categories (16):** Food & Dining, Transportation, Travel, Shopping, Bills & Utilities, Entertainment, Health, Home, Insurance & Financial, Business Services, Gifts & Donations, Fees & Adjustments, Payments & Credits, Income, Transfers, ATM & Cash
 
 ## Card Reward Optimization
 
 ```python
 from fin_insights.rewards import load_rewards_to_db, recommend_for_category, optimize_past_spending
 
-# Load rewards config (user edits ~/financial-data/config/card_rewards.yaml)
-config_path = data_dir / "config" / "card_rewards.yaml"
+config_path = data_dir / ".fin-insights" / "config" / "card_rewards.yaml"
 load_rewards_to_db(conn, config_path)
-
-# Best card for a category
 results = recommend_for_category(conn, "Food & Dining")
-# Returns: [{card_name, institution, reward_type, reward_rate, annual_fee}]
-
-# Missed reward opportunities over past N months
 missed = optimize_past_spending(conn, months=3)
-# Returns: [{category, amount_spent, card_used, earned, optimal_card, optimal_earned, missed_rewards}]
 ```
 
-## Handling New Banks
+## Handling New Banks (CSV)
 
-When the user adds statements from an unsupported bank:
+When encountering statements from an unsupported bank:
 
 1. Read the CSV's first 5-10 lines to examine headers and sample data
 2. Identify: date column(s), description, amount, category (if present)
@@ -209,12 +144,58 @@ When the user adds statements from an unsupported bank:
   "category_mappings": {}
 }
 ```
-5. Save to `~/financial-data/profiles/{bank_name}_{account_type}.json`
+5. Save to `{data_dir}/.fin-insights/profiles/{bank_name}_{account_type}.json`
 6. Confirm with the user before saving
+
+## Handling PDFs (LLM-Assisted)
+
+For PDF bank statements, YOU are the parser. Do not rely on automated PDF parsing for unknown banks.
+
+1. Extract text from the PDF:
+```python
+import pdfplumber
+pdf = pdfplumber.open(str(pdf_path))
+text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+pdf.close()
+```
+
+2. Read the extracted text and identify:
+   - Transaction line pattern (date, description, amount positions)
+   - Statement period / close date (for year inference)
+   - Section headers (purchases, payments, fees)
+   - Amount sign convention
+
+3. Parse transactions from the text and create Transaction objects:
+```python
+from fin_insights.models import Transaction
+from fin_insights.categories import map_category
+from fin_insights.categories import load_category_mappings
+
+category_mappings = load_category_mappings(data_dir)
+
+txn = Transaction(
+    institution="bank_name",
+    account_type="credit_card",
+    transaction_date=date_obj,
+    description="MERCHANT NAME",
+    amount=42.50,  # positive=expense, negative=income
+    unified_category="Food & Dining",
+    source_file=str(pdf_path),
+)
+```
+
+4. Insert into the database:
+```python
+from fin_insights.db import insert_transactions
+inserted = insert_transactions(conn, transactions)
+```
+
+For known banks (BofA, Chase, Discover, Wells Fargo), built-in regex parsers exist as fallback in `fin_insights.pdf_parser`.
 
 ## Conventions
 
 - **Amount sign**: positive = expense/debit, negative = income/credit
-- **Data directory**: `$FIN_INSIGHTS_DATA` env var or `~/financial-data/`
+- **Data directory**: User-provided path or current working directory
+- **State directory**: `{data_dir}/.fin-insights/` — contains DB, profiles, config
 - Never commit user financial data to any repository
 - Always close the DuckDB connection when done

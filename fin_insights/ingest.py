@@ -8,24 +8,20 @@ import duckdb
 
 from fin_insights import db
 from fin_insights.categories import load_category_mappings
-from fin_insights.config import get_statements_dir
+from fin_insights.config import STATE_DIR, STATEMENT_EXTENSIONS
 from fin_insights.profile import load_all_profiles, match_profile, parse_csv_with_profile
 
 logger = logging.getLogger(__name__)
-
-# Supported file extensions
-CSV_EXTENSIONS = {".csv"}
-PDF_EXTENSIONS = {".pdf"}
 
 
 def ingest(data_dir: Path, conn: duckdb.DuckDBPyConnection) -> dict:
     """Run the full ingestion pipeline.
 
+    Scans data_dir recursively for CSV/PDF files, skipping .fin-insights/.
     Returns a summary dict with counts of files processed and transactions inserted.
     """
-    statements_dir = get_statements_dir(data_dir)
-    if not statements_dir.exists():
-        return {"error": f"Statements directory not found: {statements_dir}"}
+    if not data_dir.exists():
+        return {"error": f"Directory not found: {data_dir}"}
 
     profiles = load_all_profiles(data_dir)
     if not profiles:
@@ -43,19 +39,7 @@ def ingest(data_dir: Path, conn: duckdb.DuckDBPyConnection) -> dict:
         "details": [],
     }
 
-    # Collect all CSV and PDF files
-    all_files = []
-    for ext in ("*.csv", "*.CSV", "*.pdf", "*.PDF"):
-        all_files.extend(statements_dir.rglob(ext))
-
-    # Deduplicate (case-insensitive filesystems)
-    seen_paths = set()
-    unique_files = []
-    for f in sorted(all_files):
-        resolved = f.resolve()
-        if resolved not in seen_paths:
-            seen_paths.add(resolved)
-            unique_files.append(f)
+    unique_files = _collect_statement_files(data_dir)
 
     for file_path in unique_files:
         summary["files_scanned"] += 1
@@ -72,6 +56,34 @@ def ingest(data_dir: Path, conn: duckdb.DuckDBPyConnection) -> dict:
             summary["files_failed"] += 1
 
     return summary
+
+
+def _collect_statement_files(data_dir: Path) -> list[Path]:
+    """Collect all CSV/PDF files in data_dir, skipping .fin-insights/."""
+    all_files = []
+    for f in data_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        if f.suffix.lower() not in STATEMENT_EXTENSIONS:
+            continue
+        # Skip files inside .fin-insights/
+        try:
+            f.relative_to(data_dir / STATE_DIR)
+            continue
+        except ValueError:
+            pass
+        all_files.append(f)
+
+    # Deduplicate (case-insensitive filesystems)
+    seen_paths = set()
+    unique_files = []
+    for f in sorted(all_files):
+        resolved = f.resolve()
+        if resolved not in seen_paths:
+            seen_paths.add(resolved)
+            unique_files.append(f)
+
+    return unique_files
 
 
 def _process_file(
@@ -95,9 +107,9 @@ def _process_file(
     if existing:
         db.delete_transactions_for_file(conn, rel_path)
 
-    if suffix in CSV_EXTENSIONS:
+    if suffix == ".csv":
         return _process_csv(file_path, rel_path, file_hash, profiles, category_mappings, conn)
-    elif suffix in PDF_EXTENSIONS:
+    elif suffix == ".pdf":
         return _process_pdf(file_path, rel_path, file_hash, profiles, category_mappings, conn)
     else:
         return {"file": rel_path, "status": "failed", "reason": f"unsupported format: {suffix}"}
@@ -153,21 +165,33 @@ def _process_pdf(
 
     # Check if pdfplumber is available
     try:
-        from fin_insights.pdf_parser import parse_bofa_pdf
+        from fin_insights.pdf_parser import (
+            parse_bofa_pdf,
+            parse_bofa_yearend_pdf,
+            parse_chase_checking_pdf,
+            parse_discover_pdf,
+            parse_wells_fargo_pdf,
+        )
     except ImportError:
-        return {"file": rel_path, "status": "failed", "reason": "pdfplumber not installed (uv sync --extra pdf)"}
+        return {"file": rel_path, "status": "failed", "reason": "pdfplumber not installed (pip install pdfplumber)"}
 
-    if institution == "bofa":
-        try:
-            transactions = parse_bofa_pdf(
-                file_path, category_mappings,
-                account_type=profile.get("account_type", "credit_card"),
-            )
-        except Exception as e:
-            logger.warning("Failed to parse PDF %s: %s", rel_path, e)
-            return {"file": rel_path, "status": "failed", "reason": str(e)}
-    else:
-        return {"file": rel_path, "status": "failed", "reason": f"PDF parsing not implemented for {institution}"}
+    account_type = profile.get("account_type", "credit_card")
+    try:
+        if institution == "bofa" and "yearend" in file_path.name.lower():
+            transactions = parse_bofa_yearend_pdf(file_path, category_mappings)
+        elif institution == "bofa":
+            transactions = parse_bofa_pdf(file_path, category_mappings, account_type=account_type)
+        elif institution == "chase":
+            transactions = parse_chase_checking_pdf(file_path, category_mappings)
+        elif institution == "discover":
+            transactions = parse_discover_pdf(file_path, category_mappings)
+        elif institution == "wells_fargo":
+            transactions = parse_wells_fargo_pdf(file_path, category_mappings)
+        else:
+            return {"file": rel_path, "status": "failed", "reason": f"PDF parsing not implemented for {institution}"}
+    except Exception as e:
+        logger.warning("Failed to parse PDF %s: %s", rel_path, e)
+        return {"file": rel_path, "status": "failed", "reason": str(e)}
 
     return _store_transactions(
         transactions, rel_path, file_hash, institution,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from fin_insights.config import get_db_path, get_statements_dir
+from fin_insights.config import get_db_path
 from fin_insights.db import get_connection
 from fin_insights.ingest import ingest
 
@@ -16,22 +16,16 @@ FIXTURES = Path(__file__).parent / "fixtures"
 @pytest.fixture
 def data_dir(tmp_path):
     """Set up a temporary data directory with sample statements."""
-    statements = tmp_path / "statements"
-
-    # Copy fixtures into institution folders
+    # Copy fixtures into institution folders (directly in data_dir, no statements/ subdir)
     for name, folder in [
         ("sample_chase_credit.csv", "chase"),
         ("sample_amex_credit.csv", "amex"),
         ("sample_discover_credit.csv", "discover"),
         ("sample_wells_fargo_credit.csv", "wells_fargo"),
     ]:
-        dest = statements / folder
+        dest = tmp_path / folder
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(FIXTURES / name, dest / name)
-
-    # Create profiles and config dirs (empty — built-in profiles will be used)
-    (tmp_path / "profiles").mkdir()
-    (tmp_path / "config").mkdir()
 
     return tmp_path
 
@@ -73,8 +67,8 @@ def test_ingest_dedup_across_files(data_dir, db_conn):
     count_after_first = db_conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
 
     # Copy the same Chase CSV with a different name
-    src = get_statements_dir(data_dir) / "chase" / "sample_chase_credit.csv"
-    dst = get_statements_dir(data_dir) / "chase" / "sample_chase_credit_copy.csv"
+    src = data_dir / "chase" / "sample_chase_credit.csv"
+    dst = data_dir / "chase" / "sample_chase_credit_copy.csv"
     shutil.copy2(src, dst)
 
     result = ingest(data_dir, db_conn)

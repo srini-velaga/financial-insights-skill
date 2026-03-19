@@ -7,18 +7,23 @@ requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",
     "duckdb>=1.0",
+    "pdfplumber>=0.10",
     "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
-pdf = ["pdfplumber>=0.10"]
 dev = ["pytest>=8.0"]
 
 [project.scripts]
 fin-insights = "fin_insights.cli:cli"
 
+[project.urls]
+Homepage = "https://github.com/srini-velaga/financial-insights-skill"
+Repository = "https://github.com/srini-velaga/financial-insights-skill"
+
 [tool.hatch.build.targets.wheel]
 packages = ["fin_insights"]
+artifacts = ["fin_insights/skill_data/*"]
 
 [build-system]
 requires = ["hatchling"]
