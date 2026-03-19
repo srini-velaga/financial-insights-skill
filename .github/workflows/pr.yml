@@ -1,4 +1,4 @@
-name: CI
+name: PR
 
 on:
   push:
@@ -42,5 +42,5 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Check import sorting
-        run: uv run python -c "import fin_insights; print('Package imports OK')"
+      - name: Check package imports
+        run: uv run python -c "import fin_insights; from fin_insights import ingest, analytics, session, db, config; print('All imports OK')"
