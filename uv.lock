@@ -331,6 +331,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "duckdb" },
+    { name = "pdfplumber" },
     { name = "pyyaml" },
 ]
 
@@ -338,19 +339,16 @@ dependencies = [
 dev = [
     { name = "pytest" },
 ]
-pdf = [
-    { name = "pdfplumber" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "duckdb", specifier = ">=1.0" },
-    { name = "pdfplumber", marker = "extra == 'pdf'", specifier = ">=0.10" },
+    { name = "pdfplumber", specifier = ">=0.10" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
-provides-extras = ["pdf", "dev"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "iniconfig"

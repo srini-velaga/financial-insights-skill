@@ -9,6 +9,7 @@ build/
 # User data (never commit financial data)
 *.duckdb
 *.duckdb.wal
+.fin-insights/
 statements/
 
 # Environment

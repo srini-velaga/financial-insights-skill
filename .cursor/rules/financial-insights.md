@@ -1,7 +1,7 @@
 ---
 description: "Financial insights Python API for analyzing credit card and bank statements, spending trends, cash flow, and card reward optimization"
 alwaysApply: false
-globs: ["**/fin_insights/**", "**/profiles/**", "**/statements/**"]
+globs: ["**/fin_insights/**", "**/profiles/**", "**/*.csv", "**/*.pdf"]
 ---
 
 # Financial Insights Tool
@@ -11,15 +11,17 @@ You have access to the `fin_insights` Python package for personal financial anal
 ## Setup
 
 ```python
-import sys
-sys.path.insert(0, "<path-to-financial-insights-skill-repo>")
-
-from fin_insights.config import get_data_dir, get_db_path
+from pathlib import Path
+from fin_insights.config import get_data_dir, get_db_path, ensure_state_dir
 from fin_insights.db import get_connection
 
-data_dir = get_data_dir()  # uses FIN_INSIGHTS_DATA env var, or ~/financial-data/
+# Ask user for statement folder, or use current directory
+data_dir = get_data_dir()  # defaults to cwd; pass a path to override
+ensure_state_dir(data_dir)
 conn = get_connection(get_db_path(data_dir))
 ```
+
+If not installed: `pip install git+https://github.com/srini-velaga/financial-insights-skill.git`
 
 ## Ingesting Statements
 
@@ -42,9 +44,9 @@ Import from `fin_insights.analytics`:
 | `get_top_merchants(conn, limit=10, months=None)` | `limit`: int, `months`: int | `[{merchant, transactions, total}]` |
 | `get_spending_by_card(conn, months=None)` | `months`: int | `[{institution, category, total, transactions}]` |
 
-## Ad-hoc DuckDB Queries
+All analytics functions are cached automatically. Cache invalidates when new data is ingested.
 
-For questions that don't map to a canned function, query the database directly:
+## Ad-hoc DuckDB Queries
 
 ```python
 conn.execute("SELECT ... FROM transactions WHERE ...").fetchall()
@@ -58,7 +60,7 @@ conn.execute("SELECT ... FROM transactions WHERE ...").fetchall()
 
 ```python
 from fin_insights.rewards import load_rewards_to_db, recommend_for_category, optimize_past_spending
-config_path = data_dir / "config" / "card_rewards.yaml"
+config_path = data_dir / ".fin-insights" / "config" / "card_rewards.yaml"
 load_rewards_to_db(conn, config_path)
 results = recommend_for_category(conn, "Food & Dining")
 missed = optimize_past_spending(conn, months=3)
@@ -66,12 +68,9 @@ missed = optimize_past_spending(conn, months=3)
 
 ## New Bank Support
 
-When encountering statements from an unsupported bank:
-1. Read the CSV headers and sample rows
-2. Identify date, description, amount, and category columns
-3. Generate a parser profile JSON and save to ~/financial-data/profiles/
-4. Confirm the profile with the user before saving
+For CSVs: read headers, generate a profile JSON, save to `{data_dir}/.fin-insights/profiles/`.
+For PDFs: extract text with `pdfplumber`, identify patterns, parse transactions manually, insert with `fin_insights.db.insert_transactions()`.
 
 ## Data Location
 
-User data is at `$FIN_INSIGHTS_DATA` (default: `~/financial-data/`). This data should never be committed to any repository. Always close the DuckDB connection when done.
+State lives in `{data_dir}/.fin-insights/`. User provides their statement folder path. Never commit financial data to any repository. Always close the DuckDB connection when done.

@@ -23,7 +23,7 @@ def load_all_profiles(data_dir: Path) -> list[dict]:
     if builtin_dir.exists():
         for p in builtin_dir.glob("*.json"):
             profile = json.loads(p.read_text())
-            key = f"{profile['institution']}_{profile.get('account_type', 'unknown')}"
+            key = f"{profile['institution']}_{profile.get('account_type', 'unknown')}_{profile.get('file_type', 'csv')}"
             profiles[key] = profile
 
     # User profiles override
@@ -31,7 +31,7 @@ def load_all_profiles(data_dir: Path) -> list[dict]:
     if user_dir.exists():
         for p in user_dir.glob("*.json"):
             profile = json.loads(p.read_text())
-            key = f"{profile['institution']}_{profile.get('account_type', 'unknown')}"
+            key = f"{profile['institution']}_{profile.get('account_type', 'unknown')}_{profile.get('file_type', 'csv')}"
             profiles[key] = profile
 
     return list(profiles.values())
@@ -86,7 +86,7 @@ def match_profile(file_path: Path, profiles: list[dict]) -> dict | None:
 
 def _read_header(file_path: Path) -> str | None:
     """Read the header line from a CSV file, respecting skip_rows."""
-    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(file_path, "r", encoding="utf-8-sig", errors="replace") as f:
         return f.readline().strip()
 
 
@@ -107,7 +107,7 @@ def parse_csv_with_profile(
 
     transactions = []
 
-    with open(file_path, "r", encoding=encoding, errors="replace") as f:
+    with open(file_path, "r", encoding=encoding if encoding != "utf-8" else "utf-8-sig", errors="replace") as f:
         # Skip leading rows if needed
         for _ in range(skip_rows):
             next(f, None)

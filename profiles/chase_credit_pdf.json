@@ -1,0 +1,7 @@
+{
+  "institution": "chase",
+  "display_name": "Chase Credit Card",
+  "account_type": "credit_card",
+  "file_type": "pdf",
+  "notes": "Chase credit card monthly statement PDF. Single amount column (no running balance)."
+}

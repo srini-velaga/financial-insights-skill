@@ -21,9 +21,9 @@ from fin_insights.config import (
     get_builtin_config_dir,
     get_data_dir,
     get_db_path,
-    get_statements_dir,
     get_user_config_dir,
     get_user_profiles_dir,
+    ensure_state_dir,
 )
 from fin_insights.db import get_connection
 from fin_insights.ingest import ingest
@@ -38,6 +38,19 @@ def _get_conn(ctx):
         click.echo("No database found. Run 'fin-insights ingest' first.")
         raise SystemExit(1)
     return get_connection(db_path)
+
+
+def _get_skill_source() -> Path:
+    """Find the canonical SKILL.md file, whether from pip install or cloned repo."""
+    # Check package data location first
+    pkg_skill = Path(__file__).parent / "skill_data" / "SKILL.md"
+    if pkg_skill.exists():
+        return pkg_skill
+    # Fall back to repo layout
+    repo_skill = Path(__file__).parent.parent / ".claude" / "skills" / "financial-insights" / "SKILL.md"
+    if repo_skill.exists():
+        return repo_skill
+    return pkg_skill  # Will error with clear message if neither exists
 
 
 @click.group()
@@ -55,32 +68,35 @@ def cli(ctx, data_dir):
 @cli.command()
 @click.pass_context
 def init(ctx):
-    """Set up the data directory structure."""
+    """Initialize .fin-insights/ state directory in the data directory."""
     data_dir = ctx.obj["data_dir"]
-
-    dirs_to_create = [
-        get_statements_dir(data_dir),
-        get_user_profiles_dir(data_dir),
-        get_user_config_dir(data_dir),
-    ]
-
-    for d in dirs_to_create:
-        d.mkdir(parents=True, exist_ok=True)
+    state_dir = ensure_state_dir(data_dir)
 
     example_rewards = get_builtin_config_dir() / "card_rewards.example.yaml"
     user_rewards = get_user_config_dir(data_dir) / "card_rewards.yaml"
     if example_rewards.exists() and not user_rewards.exists():
         shutil.copy2(example_rewards, user_rewards)
 
-    click.echo(f"Data directory initialized at: {data_dir}")
-    click.echo(f"  statements/  — drop your bank CSVs/PDFs here (organize by bank folder)")
-    click.echo(f"  profiles/    — auto-generated parser profiles for your banks")
-    click.echo(f"  config/      — card rewards and category overrides")
-    click.echo()
-    click.echo("Next steps:")
-    click.echo("  1. Create folders in statements/ for each bank (e.g., statements/chase/)")
-    click.echo("  2. Download CSV exports from your banks and place them in the folders")
-    click.echo("  3. Run: fin-insights ingest")
+    click.echo(f"Initialized at: {state_dir}")
+    click.echo(f"  Put bank statement CSVs/PDFs in: {data_dir}")
+    click.echo(f"  Then run: fin-insights ingest")
+
+
+@cli.command(name="install-skill")
+def install_skill():
+    """Install the financial-insights skill into Claude Code."""
+    skill_src = _get_skill_source()
+    if not skill_src.exists():
+        click.echo(f"SKILL.md not found at: {skill_src}")
+        click.echo("If you installed via pip, ensure the package data was included.")
+        raise SystemExit(1)
+
+    skill_dst_dir = Path.home() / ".claude" / "commands"
+    skill_dst_dir.mkdir(parents=True, exist_ok=True)
+    skill_dst = skill_dst_dir / "financial-insights.md"
+    shutil.copy2(skill_src, skill_dst)
+    click.echo(f"Skill installed to: {skill_dst}")
+    click.echo("The financial-insights skill is now available in Claude Code.")
 
 
 # ── Ingest ──────────────────────────────────────────────────────────────
@@ -88,15 +104,14 @@ def init(ctx):
 @cli.command(name="ingest")
 @click.pass_context
 def ingest_cmd(ctx):
-    """Scan statements and import new/modified files into the database."""
+    """Scan current directory for statements and import into database."""
     data_dir = ctx.obj["data_dir"]
-    statements_dir = get_statements_dir(data_dir)
 
-    if not statements_dir.exists():
-        click.echo(f"Statements directory not found: {statements_dir}")
-        click.echo("Run 'fin-insights init' first.")
+    if not data_dir.exists():
+        click.echo(f"Directory not found: {data_dir}")
         return
 
+    ensure_state_dir(data_dir)
     db_path = get_db_path(data_dir)
     conn = get_connection(db_path)
 

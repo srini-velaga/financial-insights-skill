@@ -1,0 +1,7 @@
+{
+  "institution": "wells_fargo",
+  "display_name": "Wells Fargo Autograph Visa",
+  "account_type": "credit_card",
+  "file_type": "pdf",
+  "notes": "Wells Fargo credit card monthly statement PDF. Purchase lines start with card ending (4 digits), payment lines start with MM/DD."
+}
